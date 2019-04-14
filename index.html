@@ -34,9 +34,29 @@
             width: 100%;
             height: 25px;
         }
+        #userinfo {
+            font-family: Arial,Ubuntu,sans-serif;
+            line-height:1.75;
+        }
+        #siteLogo {
+            font-family: Ubuntu,Arial,sans-serif;
+            font-weight: bolder;
+            line-height:0.6;
+        }
+        #joinButton {
+            display:none;
+        }
     </style>
 </head>
 <body>
+<div id="siteLogo">
+    <h1>
+        TypeFast
+    </h1>
+    <h4>
+         A typing game...
+    </h4>
+</div>
 <form action="" id="userinfo">
 Username: <input type="text" id="username" /><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
@@ -268,6 +288,8 @@ $(function() {
             let v = $('#username').val();
             if (v) player.name = v;
             $('#timer').html('Updated!');
+
+            document.getElementById('joinButton').style.display='inline-block';
         });
     });
 });
