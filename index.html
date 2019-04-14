@@ -4,6 +4,7 @@
     <title>TypeFast</title>
 </head>
 <body>
+<p id='timer'>[Time Left]</p>
 <p id="textToType"></p>
 <textarea id="typingText"></textarea>
 <button id="joinButton">Join!</button>
@@ -13,13 +14,23 @@
 $(function() {
     var socket = io('/game');
     socket.on('connect', function() {
-        function startGame(game) {
-            
-        }
+       
         $('#joinButton').click(function() {
+            
             socket.emit('join game');
         });
-        socket.on('start game', function(game) {startGame(game)});
+        socket.on('start game', function (game) {
+            $('#textToType').html(game.sentence);
+        });
+        socket.on('end game', function (game) {
+            $('#textToType').html('sorry, game ended');
+        });
+        socket.on('countdown', function (count) {
+            $('#timer').html(`Time until race starts: ${count}`);
+        });
+        socket.on('end countdown', function (count) {
+            $('#timer').html(`${count} seconds left.`);
+        });
     });
 });
 </script>
