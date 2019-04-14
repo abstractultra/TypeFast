@@ -249,7 +249,9 @@ $(function() {
         });
         
         socket.on('end countdown', function (count) {
-            $('#timer').html(`${count} seconds left.`);
+            var minutes = Math.floor(count / 60);
+            var seconds = count % 60;
+            $('#timer').html(`${'Time remaining: ' + String(minutes) + ":" + String(seconds).padStart(2,0)}`);
         });
         
         $('#roomToJoin').bind('input', function () {
