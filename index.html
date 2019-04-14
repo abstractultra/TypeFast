@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>TypeFast</title>
+    <style>
+        html,body {
+            margin-top:10px;
+            margin-left:10%;
+            margin-right:10%;
+        }
+        #textToType, #typingText {
+            font-size: 25px;
+            font-family: sans-serif;
+        }
+        #typingText {
+            width: 100%;
+            outline: none;
+        }
+        .bar {
+            background-color: greenyellow;
+            width: 0%;
+            height: 100%;
+        }
+        .progress-bar-container {
+            background-color: lightgray;
+            width: 100%;
+            height: 25px;
+        }
+    </style>
+</head>
+<body>
+<form action="" id="userinfo">
+Username: <input type="text" id="username" />
+<input type="submit" id="submitDetails" />
+</form>
+<p id='timer'>[Time Left]</p>
+<div id="players">
+[Players]
+</div>
+<p id="textToType"></p>
+<textarea id="typingText"></textarea>
+<button id="joinButton">Join a Race!</button>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
+$(function() {
+    var socket = io('/game');
+    socket.on('connect', function() {
+        var newPlayer = true;
+        var player = {
+            'id': socket.id.replace(/[^0-9A-Za-z_]+/g, ''),
+            'name': 'Guest',
+            'wordIndex': 0,
+            'charIndex': 0,
+            'wpm': 0
+        };
+        player.updateWord = function() {
+            Array.prototype.slice.call($($($('#textToType')
+            .children()[this.wordIndex])).children()).forEach(function(el) {
+                $(el).css('text-decoration', 'underline');
+            });
+        }
+        
+        player.updateProgress = function() {
+            $(`#${this.id}-progress > .bar`).css('width',
+            `${this.wordIndex / textToType.length * 100}%`);
+            socket.emit('progress update', player);
+        }
+
+        player.flushTyping = (function(e) {
+            if ($('#typingText').val() == textToType[this.wordIndex]) {
+                this.charIndex += textToType[this.wordIndex].length + 1;
+                ++this.wordIndex;
+                this.updateProgress();
+                this.updateWord();
+                $('#typingText').val('');
+                if (this.wordIndex == textToType.length) {
+                    $('#textToType').html('You finished the race.');
+                    socket.emit('race finished', player);
+                }
+            }
+            e.preventDefault();
+        });
+
+        player.updateText = (function(key) {
+            let bad = false;
+            let i;
+            if ($('#typingText').val().length >
+            textToType[this.wordIndex].length)
+                bad = true;
+            for (i = 0;
+            i < Math.min(textToType[this.wordIndex].length,
+            $('#typingText').val().length); ++i) {
+                let curCh = $($($('#textToType')
+                .children()[this.wordIndex]).children()[i]);
+                let color = 'red';
+                if (!bad && $('#typingText').val()[i] ==
+                textToType[this.wordIndex][i])
+                    color = 'green';
+                curCh.css('text-decoration-color', color)
+                .css('color', color);
+                if (color == 'red')
+                    bad = true;
+            }
+            for (; i < textToType[this.wordIndex].length; ++i) {
+                $($($('#textToType').children()[this.wordIndex])
+                .children()[i])
+                .css({
+                    'color': 'black',
+                    'text-decoration': 'underline',
+                    'text-decoration-color': 'black'
+                 });
+            }
+            let color = 'white';
+            if (bad)
+                color = 'red';
+            $('#typingText').css('background-color', color);
+        });
+        
+        $('#typingText').bind('input', function(e) {
+            player.updateText(e.key);
+            if (player.wordIndex == textToType.length - 1 &&
+            $('#typingText').val().length == textToType[textToType.length - 1].length)
+                player.flushTyping(e);
+        }).bind('keydown', function(e) {
+            if (e.key == " ") {
+                player.flushTyping(e);
+            }
+        });
+        player.updateWord();
+        
+        socket.on('progress update', function (player) {
+            $(`#${player.id}-progress > .bar`).css('width',
+            `${player.wordIndex / textToType.length * 100}%`);
+            $(`#${player.id}-progress > .wpm`).html(`${player.wpm} WPM`);
+        });
+        
+        $('#joinButton').click(function() {
+            $('#joinButton').hide();
+            socket.emit('join game', player, id => player.roomid = id);
+        });
+        
+        socket.on('start game', function (game) {
+            $('#typingText').removeAttr('readonly');
+            $('#typingText').focus();
+        });
+        
+        socket.on('end game', function (game) {
+            $('#timer').html('Sorry, the game ended.');
+            $('#joinButton').show();
+            newPlayer = true;
+        });
+        
+        socket.on('countdown', function (count, game) {
+            $('#typingText').attr('readonly', 'readonly');
+            $('#timer').html(`Time until race starts: ${count}`);
+            textToType = game.sentence.split(' ');
+            for (let i = 0; i < textToType.length; ++i) {
+                var word = $(document.createElement('span'));
+                for (let j = 0; j < textToType[i].length; ++j) {
+                    word.append($(document.createElement('span'))
+                    .html(textToType[i][j]));
+                }
+                $('#textToType').append(word).append(" ");
+            }
+        });
+        
+        socket.on('end countdown', function (count) {
+            $('#timer').html(`${count} seconds left.`);
+        });
+        
+        socket.on('list players', (function (playerArr) {
+            return function (playerArr) {
+                function pushPlayer(player) {
+                    let playerSection = $(document.createElement('div'));
+                    playerSection.addClass('progress-bar-container');
+                    let playerBar = $(document.createElement('span'));
+                    playerBar.css('display', 'inline-block');
+                    playerBar.addClass('bar');
+                    playerSection.attr('id', `${player.id}-progress`);
+                    let playerWPM = $(document.createElement('span'));
+                    playerWPM.addClass('wpm');
+                    playerWPM.css('float', 'right');
+                    playerWPM.html(`${player.wpm} WPM`);
+                    playerSection.append(playerBar).append(playerWPM);;
+                    playerBar.html(player.name);
+                    $('#players').append(playerSection);
+                }
+                if (newPlayer) {
+                    $('#players').empty();
+                    for (let i = playerArr.length - 1; i >= 0; --i)
+                        pushPlayer(playerArr[i]);
+                    newPlayer = false;
+                } else {
+                    pushPlayer(playerArr[playerArr.length - 1]);
+                }
+            }
+        })());
+        $('#userinfo').submit(function(e) {
+            e.preventDefault();
+            $('#timer').html('Username Updated!');
+            let v = $('#username').val();
+            if (v) player.name = v;
+        });
+    });
+});
+</script>
+</body>
+</html>
