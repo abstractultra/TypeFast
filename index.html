@@ -144,10 +144,13 @@ $(function() {
         $('#joinButton').click(function() {
             $('#joinButton').hide();
             socket.emit('join game', player, id => player.roomid = id);
+            
         });
         
         socket.on('start game', function (game) {
+            
             $('#typingText').removeAttr('readonly');
+            document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
         });
         
@@ -158,30 +161,10 @@ $(function() {
             newPlayer = true;
         });
         
-        socket.on('init game', function (game) {
-            $('#typingText').show();
-            $('#typingText').attr('readonly', 'readonly');
-            textToType = game.sentence.split(' ');
-            for (let i = 0; i < textToType.length; ++i) {
-                var word = $(document.createElement('span'));
-                for (let j = 0; j < textToType[i].length; ++j) {
-                    word.append($(document.createElement('span'))
-                    .html(textToType[i][j]));
-                }
-                $('#textToType').append(word).append(" ");
-            }
-        });
-        
-        socket.on('countdown', function (count) {
-            $('#timer').html(`Time until race starts: ${count}`);
-        });
-        
-        socket.on('end countdown', function (count) {
-            $('#timer').html(`${count} seconds left.`);
-        });
-        
-        socket.on('list players', (function (playerArr) {
-            return function (playerArr) {
+        socket.on('init player', (function (game) {
+            var newPlayer = true;
+            var loadedText = false;
+            return function(game) {
                 function pushPlayer(player) {
                     let playerSection = $(document.createElement('div'));
                     playerSection.addClass('progress-bar-container');
@@ -196,6 +179,7 @@ $(function() {
                     playerBar.html(player.name);
                     $('#players').append(playerSection);
                 }
+                let playerArr = game.players;
                 if (newPlayer) {
                     $('#players').empty();
                     for (let i = playerArr.length - 1; i >= 0; --i)
@@ -204,8 +188,31 @@ $(function() {
                 } else {
                     pushPlayer(playerArr[playerArr.length - 1]);
                 }
+                $('#typingText').show();
+                $('#typingText').attr('readonly', 'readonly');
+                if (!loadedText) {
+                    textToType = game.sentence.split(' ');
+                    for (let i = 0; i < textToType.length; ++i) {
+                        var word = $(document.createElement('span'));
+                        for (let j = 0; j < textToType[i].length; ++j) {
+                            word.append($(document.createElement('span'))
+                            .html(textToType[i][j]));
+                        }
+                        $('#textToType').append(word).append(" ");
+                    }
+                    loadedText = true;
+                }
             }
         })());
+        
+        socket.on('countdown', function (count) {
+            $('#timer').html(`Time until race starts: ${count}`);
+        });
+        
+        socket.on('end countdown', function (count) {
+            $('#timer').html(`${count} seconds left.`);
+        });
+        
         $('#userinfo').submit(function(e) {
             e.preventDefault();
             $('#timer').html('Username Updated!');

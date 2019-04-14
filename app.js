@@ -32,7 +32,6 @@ var nextAvailableGameRoom = (function() {
             };
             gameRoom.init = function () {
                 this.countdown();
-                game.to(gameRoom.id).emit('init game', gameRoom);
                 gameRoom.init = function(){};
             }
             gameRoom.maxPlayers = 3;
@@ -96,7 +95,7 @@ game.on('connection', function (socket) {
         socket.join(gameRoom.id);
         gameRoom.addPlayer(player);
         gameRoom.init();
-        game.to(gameRoom.id).emit('list players', gameRoom.players);
+        game.to(gameRoom.id).emit('init player', gameRoom);
         setRoomId(gameRoom.id);
     });
     
