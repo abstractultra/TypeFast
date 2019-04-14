@@ -38,7 +38,23 @@
 </head>
 <body>
 <form action="" id="userinfo">
-Username: <input type="text" id="username" />
+Username: <input type="text" id="username" /><br />
+RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
+<span id="customRoomOptions" style="display: none">
+<input type="radio" value="create" name="createOrJoin"/>Create
+<input type="radio" value="join" name="createOrJoin" checked/>Join<br/>
+<span id="createRoomOptions" style="display: none">
+Min Players: <select id="minPlayers">
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+</select>
+</span>
+<br/>
+</span>
 <input type="submit" id="submitDetails" />
 </form>
 <p id='timer'></p>
@@ -148,7 +164,6 @@ $(function() {
         });
         
         socket.on('start game', function (game) {
-            
             $('#typingText').removeAttr('readonly');
             document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
@@ -205,6 +220,10 @@ $(function() {
             }
         })());
         
+        socket.on('waiting for players', function (num) {
+            $('#timer').html(`Waiting for ${num} more player(s)...`);
+        });
+        
         socket.on('countdown', function (count) {
             $('#timer').html(`Time until race starts: ${count}`);
         });
@@ -213,9 +232,38 @@ $(function() {
             $('#timer').html(`${count} seconds left.`);
         });
         
+        $('#roomToJoin').bind('input', function () {
+            if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
+                $('#customRoomOptions').show();
+                $('#timer').html('');
+            } else {
+                if ($('#roomToJoin').val())
+                    $('#timer').html('Not a valid server name.');
+                else
+                    $('#timer').html('');
+                $('#customRoomOptions').hide();
+            }
+        });
+        
+        $("input[name='createOrJoin']").change(function () {
+            if ($(this).val() == 'create') {
+                $('#createRoomOptions').show();
+            }
+            else if ($(this).val() == 'join') {
+                $('#createRoomOptions').hide();
+            }
+        });
+        
         $('#userinfo').submit(function(e) {
             e.preventDefault();
-            $('#timer').html('Username Updated!');
+            $('#timer').html('Updated!');
+            let r = $('#roomToJoin').val();
+            if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
+                player.roomid = $('#roomToJoin').val();
+            }
+            player.wish = $("input[name='createOrJoin']").val();
+            let m = $('#minPlayers').val();
+            if (m) player.minPlayers = m;
             let v = $('#username').val();
             if (v) player.name = v;
         });

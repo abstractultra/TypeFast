@@ -10,7 +10,7 @@ const game = io.of('/game');
 
 const games = [];
 
-var nextAvailableGameRoom = (function() {
+var nextAvailableGameRoom = (function(player) {
     var sentences = [
         "If you're part of the minority who truly wants to learn more, I'd love to help you with your journey. I welcome you to my website, \"for the minority has already proved themselves.\" This website is not just about being that smart student in class, but also about learning well on your own.",
         "If you spend too much time thinking about a thing, you'll never get it done.",
@@ -20,20 +20,27 @@ var nextAvailableGameRoom = (function() {
         "Motivation doesn't just come from responses in the future, but it can also come from the present, perhaps even on your journey to your goal. I don't particulary advise to spam your walls with motivational posters, but you should always have something that would help you keep moving forward. Your brain loves coming up with negative thoughts, so by keeping positive thoughts ubiquitous, you receive perhaps just a bit of extra motivation to keep you pushing forward.",
         "Without a strict schedule, we often waste time deciding on what to do. And believe it or not, these times actually eat away at our willpower, because the act of deciding what to do next itself is something that takes thought and can often lead to wasted time. By keeping with you a path to reach your goals, and knowing what to do next, you eliminate the need to have to think about the next thing to do, and can focus on keeping your progress towards your goal consistent."
     ];
-    return function() {
-        function createGameRoom() {
+    return function (player) {
+        function createGameRoom(player) {
+            let roomid = player.roomid;
+            let minPlayers = (roomid) ? player.minPlayers : undefined;
             var gameRoom = {};
-            gameRoom.id = io.engine.generateId();
-            gameRoom.state = 'waiting';
+            gameRoom.id = (roomid) ? roomid : io.engine.generateId();
+            gameRoom.state = (roomid) ? 'custom' : 'waiting';
             gameRoom.sentence = sentences[Math.floor(Math.random() * 5)];
             gameRoom.players = [];
             gameRoom.start = function () {
                 game.to(this.id).emit('start game', this);
             };
             gameRoom.init = function () {
-                this.countdown();
-                gameRoom.init = function(){};
+                if (gameRoom.players.length >= gameRoom.minPlayers) {
+                    this.countdown();
+                    gameRoom.init = function(){};
+                } else {
+                    game.to(this.id).emit('waiting for players', gameRoom.minPlayers - gameRoom.players.length);
+                }
             }
+            gameRoom.minPlayers = (minPlayers) ? minPlayers : 1;
             gameRoom.maxPlayers = 3;
             gameRoom.countdown = (function () {
                 let count = 10;
@@ -79,19 +86,26 @@ var nextAvailableGameRoom = (function() {
             return gameRoom;
         }
         let availableRooms;
-        availableRooms = games.filter(gr => gr.state == 'waiting');
-        if (availableRooms.length == 0) {
-            return createGameRoom();
+        if (player.wish == 'join') {
+            if (roomid) {
+                availableRooms = games.filter(gr => gr.id == roomid);
+            } else {
+                availableRooms = games.filter(gr => gr.state == 'waiting');
+            }
+            if (availableRooms.length == 0)
+                return createGameRoom(player);
+            else
+                return availableRooms[0];
+        } else if (player.wish == 'create') {
+            return createGameRoom(player);
         }
-        else
-            return availableRooms[0];
     }
 })();
 
 game.on('connection', function (socket) {
     console.log('Someone joined TypeFast!');
     socket.on('join game', function(player, setRoomId) {
-        let gameRoom = nextAvailableGameRoom();
+        let gameRoom = nextAvailableGameRoom(player);
         socket.join(gameRoom.id);
         gameRoom.addPlayer(player);
         gameRoom.init();
@@ -100,7 +114,7 @@ game.on('connection', function (socket) {
     });
     
     socket.on('race finished', function (player) {
-        // Do stuff
+        delete player.roomid;
     });
     
     socket.on('progress update', function (player) {
