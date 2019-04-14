@@ -30,7 +30,7 @@
 </head>
 <body>
 <form action="" id="userinfo">
-<input type="text" id="username" />
+Username: <input type="text" id="username" />
 <input type="submit" id="submitDetails" />
 </form>
 <p id='timer'>[Time Left]</p>
@@ -195,6 +195,7 @@ $(function() {
         })());
         $('#userinfo').submit(function(e) {
             e.preventDefault();
+            $('#timer').html('Username Updated!');
             let v = $('#username').val();
             if (v) player.name = v;
         });
