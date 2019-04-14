@@ -5,7 +5,7 @@
     <style>
         textarea {
             resize: none;
-            overflow: none;
+            overflow: hidden;
         }
         html,body {
             margin-top:10px;
@@ -160,7 +160,7 @@ $(function() {
         $('#joinButton').click(function() {
             $('#joinButton').hide();
             socket.emit('join game', player, id => player.roomid = id);
-            
+            document.getElementById('userinfo').style.display='none';
         });
         
         socket.on('start game', function (game) {
