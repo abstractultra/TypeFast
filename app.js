@@ -105,10 +105,12 @@ game.on('connection', function (socket) {
     
     socket.on('progress update', function (player) {
         let gameRoom = games.find(g => player.roomid == g.id);
-        let timeElapsed = gameRoom.initialTime - gameRoom.timeLeft;
-        let wpm = Math.round(player.charIndex / 5 * 60 / timeElapsed);
-        player.wpm = wpm;
-        game.to(player.roomid).emit('progress update', player);
+        if (gameRoom) {
+            let timeElapsed = gameRoom.initialTime - gameRoom.timeLeft;
+            let wpm = Math.round(player.charIndex / 5 * 60 / timeElapsed);
+            player.wpm = wpm;
+            game.to(player.roomid).emit('progress update', player);
+        }
     });
     
     socket.on('disconnect', function() {
