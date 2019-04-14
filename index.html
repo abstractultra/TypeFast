@@ -151,7 +151,7 @@ $(function() {
             newPlayer = true;
         });
         
-        socket.on('countdown', function (count) {
+        socket.on('countdown', function (count, game) {
             $('#typingText').attr('readonly', 'readonly');
             $('#timer').html(`Time until race starts: ${count}`);
             textToType = game.sentence.split(' ');
