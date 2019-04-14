@@ -3,10 +3,18 @@
 <head>
     <title>TypeFast</title>
     <style>
+        textarea {
+            resize: none;
+            overflow: none;
+        }
         html,body {
             margin-top:10px;
             margin-left:10%;
             margin-right:10%;
+        }
+        .wpm {
+            position: absolute;
+            right: 0;
         }
         #textToType, #typingText {
             font-size: 25px;
@@ -14,7 +22,6 @@
         }
         #typingText {
             width: 100%;
-            outline: none;
         }
         .bar {
             background-color: greenyellow;
@@ -22,6 +29,7 @@
             height: 100%;
         }
         .progress-bar-container {
+            position: relative;
             background-color: lightgray;
             width: 100%;
             height: 25px;
@@ -182,9 +190,8 @@ $(function() {
                     playerBar.addClass('bar');
                     playerSection.attr('id', `${player.id}-progress`);
                     let playerWPM = $(document.createElement('span'));
-                    playerWPM.addClass('wpm');
-                    playerWPM.css('float', 'right');
                     playerWPM.html(`${player.wpm} WPM`);
+                    playerWPM.addClass('wpm');
                     playerSection.append(playerBar).append(playerWPM);;
                     playerBar.html(player.name);
                     $('#players').append(playerSection);
