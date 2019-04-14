@@ -32,13 +32,14 @@ var nextAvailableGameRoom = (function() {
             };
             gameRoom.init = function () {
                 this.countdown();
+                game.to(gameRoom.id).emit('init game', gameRoom);
                 gameRoom.init = function(){};
             }
             gameRoom.maxPlayers = 3;
             gameRoom.countdown = (function () {
                 let count = 10;
                 return function countdown() {
-                    game.to(gameRoom.id).emit('countdown', count--, gameRoom);
+                    game.to(gameRoom.id).emit('countdown', count--);
                     if (count >= 0) {
                         if (count <= 3)
                             gameRoom.state = 'starting';

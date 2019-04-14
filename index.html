@@ -33,12 +33,10 @@
 Username: <input type="text" id="username" />
 <input type="submit" id="submitDetails" />
 </form>
-<p id='timer'>[Time Left]</p>
-<div id="players">
-[Players]
-</div>
+<p id='timer'></p>
+<div id="players"></div>
 <p id="textToType"></p>
-<textarea id="typingText"></textarea>
+<textarea id="typingText"  style="display: none"></textarea>
 <button id="joinButton">Join a Race!</button>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
@@ -142,18 +140,19 @@ $(function() {
         
         socket.on('start game', function (game) {
             $('#typingText').removeAttr('readonly');
-            $('#typingText').focus();
+            document.getElementById('typingText').focus();
         });
         
         socket.on('end game', function (game) {
             $('#timer').html('Sorry, the game ended.');
+            $('#typingText').hide();
             $('#joinButton').show();
             newPlayer = true;
         });
         
-        socket.on('countdown', function (count, game) {
+        socket.on('init game', function (game) {
+            $('#typingText').show();
             $('#typingText').attr('readonly', 'readonly');
-            $('#timer').html(`Time until race starts: ${count}`);
             textToType = game.sentence.split(' ');
             for (let i = 0; i < textToType.length; ++i) {
                 var word = $(document.createElement('span'));
@@ -163,6 +162,10 @@ $(function() {
                 }
                 $('#textToType').append(word).append(" ");
             }
+        });
+        
+        socket.on('countdown', function (count) {
+            $('#timer').html(`Time until race starts: ${count}`);
         });
         
         socket.on('end countdown', function (count) {
