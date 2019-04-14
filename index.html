@@ -141,15 +141,8 @@ $(function() {
         });
         
         socket.on('start game', function (game) {
-            textToType = game.sentence.split(' ');
-            for (let i = 0; i < textToType.length; ++i) {
-                var word = $(document.createElement('span'));
-                for (let j = 0; j < textToType[i].length; ++j) {
-                    word.append($(document.createElement('span'))
-                    .html(textToType[i][j]));
-                }
-                $('#textToType').append(word).append(" ");
-            }
+            $('#typingText').removeAttr('readonly');
+            $('#typingText').focus();
         });
         
         socket.on('end game', function (game) {
@@ -159,7 +152,17 @@ $(function() {
         });
         
         socket.on('countdown', function (count) {
+            $('#typingText').attr('readonly', 'readonly');
             $('#timer').html(`Time until race starts: ${count}`);
+            textToType = game.sentence.split(' ');
+            for (let i = 0; i < textToType.length; ++i) {
+                var word = $(document.createElement('span'));
+                for (let j = 0; j < textToType[i].length; ++j) {
+                    word.append($(document.createElement('span'))
+                    .html(textToType[i][j]));
+                }
+                $('#textToType').append(word).append(" ");
+            }
         });
         
         socket.on('end countdown', function (count) {
