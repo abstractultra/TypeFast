@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>TypeFast</title>
+</head>
+<body>
+<p id="textToType"></p>
+<textarea id="typingText"></textarea>
+<button id="joinButton">Join!</button>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script>
+$(function() {
+    var socket = io('/game');
+    socket.on('connect', function() {
+        function startGame(game) {
+            
+        }
+        $('#joinButton').click(function() {
+            socket.emit('join game');
+        });
+        socket.on('start game', function(game) {startGame(game)});
+    });
+});
+</script>
+</body>
+</html>
