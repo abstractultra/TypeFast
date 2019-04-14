@@ -41,8 +41,8 @@
 Username: <input type="text" id="username" /><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
 <span id="customRoomOptions" style="display: none">
-<input type="radio" value="create" name="createOrJoin"/>Create
-<input type="radio" value="join" name="createOrJoin" checked/>Join<br/>
+<input type="radio" value="create" name="changeOrJoin"/>Create
+<input type="radio" value="join" name="changeOrJoin" checked/>Join<br/>
 <span id="createRoomOptions" style="display: none">
 Min Players: <select id="minPlayers">
 <option value="1">1</option>
@@ -245,7 +245,7 @@ $(function() {
             }
         });
         
-        $("input[name='createOrJoin']").change(function () {
+        $("input[name='changeOrJoin']").change(function () {
             if ($(this).val() == 'create') {
                 $('#createRoomOptions').show();
             }
@@ -256,16 +256,18 @@ $(function() {
         
         $('#userinfo').submit(function(e) {
             e.preventDefault();
-            $('#timer').html('Updated!');
             let r = $('#roomToJoin').val();
             if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
                 player.roomid = $('#roomToJoin').val();
+            } else {
+                player.roomid = undefined;
             }
-            player.wish = $("input[name='createOrJoin']").val();
+            player.wish = $("input[name='changeOrJoin']:checked").val();
             let m = $('#minPlayers').val();
             if (m) player.minPlayers = m;
             let v = $('#username').val();
             if (v) player.name = v;
+            $('#timer').html('Updated!');
         });
     });
 });

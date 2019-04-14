@@ -21,9 +21,9 @@ var nextAvailableGameRoom = (function(player) {
         "Without a strict schedule, we often waste time deciding on what to do. And believe it or not, these times actually eat away at our willpower, because the act of deciding what to do next itself is something that takes thought and can often lead to wasted time. By keeping with you a path to reach your goals, and knowing what to do next, you eliminate the need to have to think about the next thing to do, and can focus on keeping your progress towards your goal consistent."
     ];
     return function (player) {
+        let roomid = player.roomid;
         function createGameRoom(player) {
-            let roomid = player.roomid;
-            let minPlayers = (roomid) ? player.minPlayers : undefined;
+            let minPlayers = (roomid) ? player.minPlayers : 1;
             var gameRoom = {};
             gameRoom.id = (roomid) ? roomid : io.engine.generateId();
             gameRoom.state = (roomid) ? 'custom' : 'waiting';
@@ -40,7 +40,7 @@ var nextAvailableGameRoom = (function(player) {
                     game.to(this.id).emit('waiting for players', gameRoom.minPlayers - gameRoom.players.length);
                 }
             }
-            gameRoom.minPlayers = (minPlayers) ? minPlayers : 1;
+            gameRoom.minPlayers = parseInt(minPlayers, 10);
             gameRoom.maxPlayers = 3;
             gameRoom.countdown = (function () {
                 let count = 10;
@@ -56,7 +56,7 @@ var nextAvailableGameRoom = (function(player) {
                         gameRoom.state = 'active';
                         gameRoom.start();
                         gameRoom.endCountdown();
-                        console.log('game started');
+                        
                     }
                 }
             })();
@@ -73,7 +73,7 @@ var nextAvailableGameRoom = (function(player) {
                         index = games.indexOf(gameRoom);
                         games.splice(index, 1);
                         game.to(gameRoom.id).emit('end game', gameRoom);
-                        console.log('game ended');
+                        
                     }
                 }
             })();
@@ -103,14 +103,16 @@ var nextAvailableGameRoom = (function(player) {
 })();
 
 game.on('connection', function (socket) {
-    console.log('Someone joined TypeFast!');
+   
     socket.on('join game', function(player, setRoomId) {
-        let gameRoom = nextAvailableGameRoom(player);
-        socket.join(gameRoom.id);
-        gameRoom.addPlayer(player);
-        gameRoom.init();
-        game.to(gameRoom.id).emit('init player', gameRoom);
-        setRoomId(gameRoom.id);
+        if (games.find(g => g.players.find(p => p.id == player.id) !== undefined) === undefined) {
+            let gameRoom = nextAvailableGameRoom(player);
+            socket.join(gameRoom.id);
+            gameRoom.addPlayer(player);
+            gameRoom.init();
+            game.to(gameRoom.id).emit('init player', gameRoom);
+            setRoomId(gameRoom.id);
+        }
     });
     
     socket.on('race finished', function (player) {
@@ -128,7 +130,7 @@ game.on('connection', function (socket) {
     });
     
     socket.on('disconnect', function() {
-        console.log('Someone left TypeFast...');
+        
     });
 });
 
