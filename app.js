@@ -22,7 +22,7 @@ nextAvailableGameRoom = (function() {
             var gameRoom = {};
             gameRoom.id = io.engine.generateId();
             gameRoom.state = 'waiting';
-            gameRoom.sentence = sentences[Math.floor(Math.random * 5)];
+            gameRoom.sentence = sentences[Math.floor(Math.random() * 5)];
             gameRoom.players = [];
             gameRoom.start = function () {
                 game.to(this.id).emit('start game', this);
