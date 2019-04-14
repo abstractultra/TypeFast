@@ -38,7 +38,7 @@ var nextAvailableGameRoom = (function() {
             gameRoom.countdown = (function () {
                 let count = 10;
                 return function countdown() {
-                    game.to(gameRoom.id).emit('countdown', count--);
+                    game.to(gameRoom.id).emit('countdown', count--, gameRoom);
                     if (count >= 0) {
                         if (count <= 3)
                             gameRoom.state = 'starting';
