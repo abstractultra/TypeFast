@@ -27,7 +27,7 @@ var nextAvailableGameRoom = (function(player) {
             var gameRoom = {};
             gameRoom.id = (roomid) ? roomid : io.engine.generateId();
             gameRoom.state = (roomid) ? 'custom' : 'waiting';
-            gameRoom.sentence = sentences[Math.floor(Math.random() * 5)];
+            gameRoom.sentence = sentences[Math.floor(Math.random() * sentences.length)];
             gameRoom.players = [];
             gameRoom.start = function () {
                 game.to(this.id).emit('start game', this);
@@ -45,18 +45,20 @@ var nextAvailableGameRoom = (function(player) {
             gameRoom.countdown = (function () {
                 let count = 10;
                 return function countdown() {
-                    game.to(gameRoom.id).emit('countdown', count--);
-                    if (count >= 0) {
-                        if (count <= 3)
-                            gameRoom.state = 'starting';
-                        setTimeout(function() {
-                            countdown();
-                        }, 1000);
-                    } else {
-                        gameRoom.state = 'active';
-                        gameRoom.start();
-                        gameRoom.endCountdown();
-                        
+                    if (gameRoom.state != 'dead') {
+                        game.to(gameRoom.id).emit('countdown', count--);
+                        if (count >= 0) {
+                            if (count <= 3)
+                                gameRoom.state = 'starting';
+                            setTimeout(function() {
+                                countdown();
+                            }, 1000);
+                        } else {
+                            gameRoom.state = 'active';
+                            gameRoom.start();
+                            gameRoom.endCountdown();
+                            
+                        }
                     }
                 }
             })();
@@ -64,16 +66,17 @@ var nextAvailableGameRoom = (function(player) {
             gameRoom.timeLeft = 100;
             gameRoom.endCountdown = (function () {
                 return function countdown() {
-                    game.to(gameRoom.id).emit('end countdown', gameRoom.timeLeft--);
-                    if (gameRoom.timeLeft >= 0) {
-                        setTimeout(function() {
-                            countdown();
-                        }, 1000);
-                    } else {
-                        index = games.indexOf(gameRoom);
-                        games.splice(index, 1);
-                        game.to(gameRoom.id).emit('end game', gameRoom);
-                        
+                        if (gameRoom.state != 'dead') {
+                        game.to(gameRoom.id).emit('end countdown', gameRoom.timeLeft--);
+                        if (gameRoom.timeLeft >= 0) {
+                            setTimeout(function() {
+                                countdown();
+                            }, 1000);
+                        } else {
+                            index = games.indexOf(gameRoom);
+                            games.splice(index, 1);
+                            game.to(gameRoom.id).emit('end game', gameRoom);
+                        }
                     }
                 }
             })();
@@ -86,7 +89,9 @@ var nextAvailableGameRoom = (function(player) {
             return gameRoom;
         }
         let availableRooms;
-        if (player.wish == 'join') {
+        if (player.wish == 'create') {
+            return createGameRoom(player);
+        } else {
             if (roomid) {
                 availableRooms = games.filter(gr => gr.id == roomid);
             } else {
@@ -96,15 +101,13 @@ var nextAvailableGameRoom = (function(player) {
                 return createGameRoom(player);
             else
                 return availableRooms[0];
-        } else if (player.wish == 'create') {
-            return createGameRoom(player);
         }
     }
 })();
 
 game.on('connection', function (socket) {
-   
     socket.on('join game', function(player, setRoomId) {
+        game.player = player;
         if (games.find(g => g.players.find(p => p.id == player.id) !== undefined) === undefined) {
             let gameRoom = nextAvailableGameRoom(player);
             socket.join(gameRoom.id);
@@ -116,7 +119,17 @@ game.on('connection', function (socket) {
     });
     
     socket.on('race finished', function (player) {
-        delete player.roomid;
+        // Find player's game room
+        let gameIndex = games.findIndex(g => g.id == player.roomid);
+        if (games[gameIndex]) {
+            let playerIndex = games[gameIndex].players.findIndex(p => p.id == player.id);
+            games[gameIndex].players.splice(playerIndex, 1);
+            if (games[gameIndex].players.length == 0) {
+                games[gameIndex].state = 'dead';
+                games.splice(gameIndex, 1);
+            }
+            delete player.roomid;
+        }
     });
     
     socket.on('progress update', function (player) {
@@ -128,7 +141,6 @@ game.on('connection', function (socket) {
             game.to(player.roomid).emit('progress update', player);
         }
     });
-    
     socket.on('disconnect', function() {
         
     });
