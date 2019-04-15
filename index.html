@@ -184,7 +184,7 @@ $(function() {
         });
         
         player.endGame = function () {
-            if (player.wordIndex == textToType.length - 1)
+            if (player.wordIndex == textToType.length)
                 $('#messages').html(`You finished the race with ${player.wpm} WPM`);
             else
                 $('#messages').html('Sorry, you ran out of time.');
