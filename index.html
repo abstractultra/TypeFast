@@ -5,7 +5,7 @@
     <style>
         textarea {
             resize: none;
-            overflow: hidden;
+            overflow: none;
         }
         html,body {
             margin-top:10px;
@@ -46,20 +46,9 @@
         html,body {
             font-family: Arial,Ubuntu,sans-serif;
         }
-        #joinButton {
-            display:none;
-        }
     </style>
 </head>
 <body>
-<div id="siteLogo">
-    <h1>
-        TypeFast
-    </h1>
-    <h4>
-         A typing game...
-    </h4>
-</div>
 <form action="" id="userinfo">
 Username: <input type="text" id="username" /><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
@@ -78,13 +67,17 @@ Min Players: <select id="minPlayers">
 </span>
 <br/>
 </span>
+<p id="messages"></p>
+<br/>
 <input type="submit" id="submitDetails" />
 </form>
-<p id='timer'></p>
+<span id="gameElements">
+<p id="timer"></p>
 <div id="players"></div>
 <p id="textToType"></p>
-<textarea id="typingText"  style="display: none"></textarea>
-<button id="joinButton">Join a Race!</button>
+<textarea id="typingText" style="display: none"></textarea>
+</span>
+<button id="joinButton" style="display: none">Join a Race!</button>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
@@ -109,7 +102,6 @@ $(function() {
         player.updateProgress = function() {
             $(`#${this.id}-progress > .bar`).css('width',
             `${this.wordIndex / textToType.length * 100}%`);
-            socket.emit('progress update', player);
         }
 
         player.flushTyping = (function(e) {
@@ -120,8 +112,7 @@ $(function() {
                 this.updateWord();
                 $('#typingText').val('');
                 if (this.wordIndex == textToType.length) {
-                    $('#textToType').html('You finished the race.');
-                    socket.emit('race finished', player);
+                    player.endGame();
                 }
             }
             e.preventDefault();
@@ -181,9 +172,9 @@ $(function() {
         });
         
         $('#joinButton').click(function() {
-            $('#joinButton').hide();
             socket.emit('join game', player, id => player.roomid = id);
-            document.getElementById('userinfo').style.display='none';
+            $('#gameElements').show();
+            $('#joinButton').hide();
         });
         
         socket.on('start game', function (game) {
@@ -192,16 +183,29 @@ $(function() {
             document.getElementById('typingText').focus();
         });
         
-        socket.on('end game', function (game) {
-            $('#timer').html('Sorry, the game ended.');
-            $('#typingText').hide();
+        player.endGame = function () {
+            if (player.wordIndex == textToType.length - 1)
+                $('#messages').html(`You finished the race with ${player.wpm} WPM`);
+            else
+                $('#messages').html('Sorry, you ran out of time.');
+            Array.prototype.slice.call($('#gameElements').children())
+            .forEach(el => $(el).empty().hide());
+            socket.emit('race finished', player);
             $('#joinButton').show();
             newPlayer = true;
+            player.wordIndex = 0;
+            player.charIndex = 0;
+            player.wpm = 0;
+            player.roomid = undefined;
+            player.loadedText = false;
+        }
+        
+        socket.on('end game', function (game) {
+            player.endGame();
         });
         
         socket.on('init player', (function (game) {
             var newPlayer = true;
-            var loadedText = false;
             return function(game) {
                 function pushPlayer(player) {
                     let playerSection = $(document.createElement('div'));
@@ -226,9 +230,10 @@ $(function() {
                 } else {
                     pushPlayer(playerArr[playerArr.length - 1]);
                 }
-                $('#typingText').show();
+                Array.prototype.slice.call($('#gameElements').children())
+                .forEach(el => $(el).show());
                 $('#typingText').attr('readonly', 'readonly');
-                if (!loadedText) {
+                if (!player.loadedText) {
                     textToType = game.sentence.split(' ');
                     for (let i = 0; i < textToType.length; ++i) {
                         var word = $(document.createElement('span'));
@@ -238,13 +243,13 @@ $(function() {
                         }
                         $('#textToType').append(word).append(" ");
                     }
-                    loadedText = true;
+                    player.loadedText = true;
                 }
             }
         })());
         
         socket.on('waiting for players', function (num) {
-            $('#timer').html(`Waiting for ${num} more player(s)...`);
+            $('#messages').html(`Waiting for ${num} more player(s)...`);
         });
         
         socket.on('countdown', function (count) {
@@ -252,20 +257,19 @@ $(function() {
         });
         
         socket.on('end countdown', function (count) {
-            var minutes = Math.floor(count / 60);
-            var seconds = count % 60;
-            $('#timer').html(`${'Time remaining: ' + String(minutes) + ":" + String(seconds).padStart(2,0)}`);
+            $('#timer').html(`${count} seconds left.`);
+            socket.emit('progress update', player);
         });
         
         $('#roomToJoin').bind('input', function () {
             if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
                 $('#customRoomOptions').show();
-                $('#timer').html('');
+                $('#messages').html('');
             } else {
                 if ($('#roomToJoin').val())
-                    $('#timer').html('Not a valid server name.');
+                    $('#messages').html('Not a valid server name.');
                 else
-                    $('#timer').html('');
+                    $('#messages').html('');
                 $('#customRoomOptions').hide();
             }
         });
@@ -292,9 +296,9 @@ $(function() {
             if (m) player.minPlayers = m;
             let v = $('#username').val();
             if (v) player.name = v;
-            $('#timer').html('Updated!');
-
-            document.getElementById('joinButton').style.display='inline-block';
+            $('#messages').html('Updated!');
+            
+            $('#joinButton').show();
         });
     });
 });
