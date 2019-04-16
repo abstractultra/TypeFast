@@ -73,9 +73,9 @@ var nextAvailableGameRoom = (function(player) {
                                     countdown();
                                 }, 1000);
                             } else {
-                                index = games.indexOf(gameRoom);
-                                games.splice(index, 1);
                                 game.to(gameRoom.id).emit('end game', gameRoom);
+                                index = games.findIndex(gr => gr.id = gameRoom.id);
+                                games.splice(index, 1);
                             }
                         }
                     }
@@ -147,11 +147,12 @@ game.on('connection', function (socket) {
     function progressUpdate(player, setPlayer) {
         if (player.roomid) {
             let gameRoom = games.find(g => player.roomid == g.id);
-            let timeElapsed = gameRoom.initialTime - gameRoom.timeLeft;
-            let newWPM = Math.round(player.charIndex / 5 * 60 / timeElapsed);
-            setPlayer(JSON.stringify({wpm: newWPM}));
-            player.wpm = newWPM;
-            game.to(player.roomid).emit('progress update', player);
+            if (gameRoom) {
+                let timeElapsed = gameRoom.initialTime - gameRoom.timeLeft;
+                let newWPM = Math.round(player.charIndex / 5 * 60 / timeElapsed);
+                setPlayer(JSON.stringify({wpm: newWPM}));
+                player.wpm = newWPM;
+                game.to(player.roomid).emit('progress update', player);
         }
     }
     
