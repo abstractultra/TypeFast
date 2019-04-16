@@ -153,6 +153,7 @@ game.on('connection', function (socket) {
                 setPlayer(JSON.stringify({wpm: newWPM}));
                 player.wpm = newWPM;
                 game.to(player.roomid).emit('progress update', player);
+            }
         }
     }
     
