@@ -209,7 +209,7 @@ $(function() {
             $(`#${player.id}-progress > .wpm`).html(`${player.wpm} WPM`);
         }).on('start game', function (game) {
             $('#typingText').removeAttr('readonly');
-            $('#messages').empty();
+            $('#messages').hide();
             document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
         }).on('end game', function (game) {
@@ -278,6 +278,7 @@ $(function() {
         $('#joinButton').click(function() {
             socket.emit('leave game', player);
             setPlayerInfo();
+            $('#messages').show();
             socket.emit('join game', player, function (playerStr, err) {
                 if (err) {
                     $('#messages').html(err);
