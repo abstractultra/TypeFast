@@ -86,73 +86,90 @@ $(function() {
     socket.on('connect', function() {
         var newPlayer = true;
         var player = {
-            'id': socket.id.replace(/[^0-9A-Za-z_]+/g, ''),
-            'name': 'Guest',
-            'wordIndex': 0,
-            'charIndex': 0,
-            'wpm': 0
-        };
-        player.updateWord = function() {
-            Array.prototype.slice.call($($($('#textToType')
-            .children()[this.wordIndex])).children()).forEach(function(el) {
-                $(el).css('text-decoration', 'underline');
-            });
-        }
-        
-        player.updateProgress = function() {
-            $(`#${this.id}-progress > .bar`).css('width',
-            `${this.wordIndex / textToType.length * 100}%`);
-        }
-
-        player.flushTyping = (function(e) {
-            if ($('#typingText').val() == textToType[this.wordIndex]) {
-                this.charIndex += textToType[this.wordIndex].length + 1;
-                ++this.wordIndex;
-                this.updateProgress();
-                this.updateWord();
-                $('#typingText').val('');
-                if (this.wordIndex == textToType.length) {
-                    player.endGame();
+            id: socket.id.replace(/[^0-9A-Za-z_]+/g, ''),
+            name: 'Guest',
+            wordIndex: 0,
+            charIndex: 0,
+            wpm: 0,
+            updateWord: function() {
+                Array.prototype.slice.call($($($('#textToType')
+                .children()[this.wordIndex])).children())
+                .forEach(function(el) {
+                    $(el).css('text-decoration', 'underline');
+                })
+            },
+            updateProgress: function() {
+                $(`#${this.id}-progress > .bar`).css('width',
+                `${this.wordIndex / textToType.length * 100}%`);
+            },
+            flushTyping: function(e) {
+                if ($('#typingText').val() == textToType[this.wordIndex]) {
+                    this.charIndex += textToType[this.wordIndex].length + 1;
+                    ++this.wordIndex;
+                    this.updateProgress();
+                    this.updateWord();
+                    $('#typingText').val('');
+                    if (this.wordIndex == textToType.length) {
+                        player.endGame();
+                    }
                 }
-            }
-            e.preventDefault();
-        });
-
-        player.updateText = (function(key) {
-            let bad = false;
-            let i;
-            if ($('#typingText').val().length >
-            textToType[this.wordIndex].length)
-                bad = true;
-            for (i = 0;
-            i < Math.min(textToType[this.wordIndex].length,
-            $('#typingText').val().length); ++i) {
-                let curCh = $($($('#textToType')
-                .children()[this.wordIndex]).children()[i]);
-                let color = 'red';
-                if (!bad && $('#typingText').val()[i] ==
-                textToType[this.wordIndex][i])
-                    color = 'green';
-                curCh.css('text-decoration-color', color)
-                .css('color', color);
-                if (color == 'red')
+                e.preventDefault();
+            },
+            updateText: (function(key) {
+                let bad = false;
+                let i;
+                if ($('#typingText').val().length >
+                textToType[this.wordIndex].length)
                     bad = true;
+                for (i = 0;
+                i < Math.min(textToType[this.wordIndex].length,
+                $('#typingText').val().length); ++i) {
+                    let curCh = $($($('#textToType')
+                    .children()[this.wordIndex]).children()[i]);
+                    let color = 'red';
+                    if (!bad && $('#typingText').val()[i] ==
+                    textToType[this.wordIndex][i])
+                        color = 'green';
+                    curCh.css('text-decoration-color', color)
+                    .css('color', color);
+                    if (color == 'red')
+                        bad = true;
+                }
+                for (; i < textToType[this.wordIndex].length; ++i) {
+                    $($($('#textToType').children()[this.wordIndex])
+                    .children()[i])
+                    .css({
+                        'color': 'black',
+                        'text-decoration': 'underline',
+                        'text-decoration-color': 'black'
+                     });
+                }
+                let color = 'white';
+                if (bad)
+                    color = 'red';
+                $('#typingText').css('background-color', color);
+            }),
+            endGame: function () {
+                socket.emit('race finished', player, function() {
+                    if (player.wordIndex == textToType.length)
+                        $('#messages').html(`You finished the race with ${player.wpm} WPM`);
+                    else
+                        $('#messages').html('Sorry, you ran out of time.');
+                    Array.prototype.slice.call($('#gameElements').children())
+                    .forEach(el => $(el).empty().hide());
+                  
+                    $('#joinButton').show();
+                    newPlayer = true;
+                    player.wordIndex = 0;
+                    player.charIndex = 0;
+                    player.wpm = 0;
+                    player.roomid = undefined;
+                    player.loadedText = false;
+                });
             }
-            for (; i < textToType[this.wordIndex].length; ++i) {
-                $($($('#textToType').children()[this.wordIndex])
-                .children()[i])
-                .css({
-                    'color': 'black',
-                    'text-decoration': 'underline',
-                    'text-decoration-color': 'black'
-                 });
-            }
-            let color = 'white';
-            if (bad)
-                color = 'red';
-            $('#typingText').css('background-color', color);
-        });
-        
+        };
+        player.updateWord();
+
         $('#typingText').bind('input', function(e) {
             player.updateText(e.key);
             if (player.wordIndex == textToType.length - 1 &&
@@ -163,48 +180,20 @@ $(function() {
                 player.flushTyping(e);
             }
         });
-        player.updateWord();
         
         socket.on('progress update', function (player) {
             $(`#${player.id}-progress > .bar`).css('width',
             `${player.wordIndex / textToType.length * 100}%`);
             $(`#${player.id}-progress > .wpm`).html(`${player.wpm} WPM`);
-        });
-        
-        $('#joinButton').click(function() {
-            socket.emit('join game', player, id => player.roomid = id);
-            $('#gameElements').show();
-            $('#joinButton').hide();
-        });
-        
-        socket.on('start game', function (game) {
+        }).on('start game', function (game) {
             $('#typingText').removeAttr('readonly');
+            $('#messages').empty();
+            console.log(player);
             document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
-        });
-        
-        player.endGame = function () {
-            if (player.wordIndex == textToType.length)
-                $('#messages').html(`You finished the race with ${player.wpm} WPM`);
-            else
-                $('#messages').html('Sorry, you ran out of time.');
-            Array.prototype.slice.call($('#gameElements').children())
-            .forEach(el => $(el).empty().hide());
-            socket.emit('race finished', player);
-            $('#joinButton').show();
-            newPlayer = true;
-            player.wordIndex = 0;
-            player.charIndex = 0;
-            player.wpm = 0;
-            player.roomid = undefined;
-            player.loadedText = false;
-        }
-        
-        socket.on('end game', function (game) {
+        }).on('end game', function (game) {
             player.endGame();
-        });
-        
-        socket.on('init player', (function (game) {
+        }).on('init player', (function (game) {
             var newPlayer = true;
             return function(game) {
                 function pushPlayer(player) {
@@ -246,19 +235,26 @@ $(function() {
                     player.loadedText = true;
                 }
             }
-        })());
-        
-        socket.on('waiting for players', function (num) {
+        })()).on('waiting for players', function (num) {
             $('#messages').html(`Waiting for ${num} more player(s)...`);
-        });
-        
-        socket.on('countdown', function (count) {
+        }).on('countdown', function (count) {
             $('#timer').html(`Time until race starts: ${count}`);
+        }).on('end countdown', function (count) {
+            $('#timer').html(`${count} seconds left.`);
+            socket.emit('progress update', player, setPlayer);
         });
         
-        socket.on('end countdown', function (count) {
-            $('#timer').html(`${count} seconds left.`);
-            socket.emit('progress update', player);
+        function setPlayer(update, fn) {
+            updateObj = JSON.parse(update);
+            Object.keys(updateObj).forEach(function(key) {
+                player[key] = updateObj[key];
+            });
+        }
+        
+        $('#joinButton').click(function() {
+            socket.emit('join game', player, setPlayer);
+            $('#gameElements').show();
+            $('#joinButton').hide();
         });
         
         $('#roomToJoin').bind('input', function () {
