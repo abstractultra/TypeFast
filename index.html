@@ -46,22 +46,18 @@
         html,body {
             font-family: Arial,Ubuntu,sans-serif;
         }
-        #joinButton {
-            display:none;
-        }
     </style>
 </head>
 <body>
 <div id="siteLogo">
-    <h1>
-        TypeFast
-    </h1>
-    <h4>
-         A typing game...
-    </h4>
-</div>
-<form action="" id="userinfo">
-Username: <input type="text" id="username" /><br />
+    <h1>	
+        TypeFast	
+    </h1>	
+    <h4>	
+         A typing game...	
+    </h4>	
+</div>	
+Username: <input type="text" id="username" placeholder="Guest"/><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
 <span id="customRoomOptions" style="display: none">
 <input type="radio" value="create" name="changeOrJoin"/>Create
@@ -80,28 +76,31 @@ Min Players: <select id="minPlayers">
 </span>
 <p id="messages"></p>
 <br/>
-<input type="submit" id="submitDetails" />
-</form>
 <span id="gameElements">
 <p id="timer"></p>
 <div id="players"></div>
 <p id="textToType"></p>
 <textarea id="typingText" style="display: none"></textarea>
 </span>
-<button id="joinButton" style="display: none">Join a Race!</button>
+<button id="joinButton">Join a Race!</button>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
+"use strict";
+
 $(function() {
     var socket = io('/game');
     socket.on('connect', function() {
+        var textToType;
         var newPlayer = true;
         var player = {
             id: socket.id.replace(/[^0-9A-Za-z_]+/g, ''),
             name: 'Guest',
             wordIndex: 0,
             charIndex: 0,
+            roomid: undefined,
             wpm: 0,
+            wish: 'join',
             updateWord: function() {
                 Array.prototype.slice.call($($($('#textToType')
                 .children()[this.wordIndex])).children())
@@ -114,8 +113,8 @@ $(function() {
                 `${this.wordIndex / textToType.length * 100}%`);
             },
             flushTyping: function(e) {
-                if ($('#typingText').val() == textToType[this.wordIndex]) {
-                    this.charIndex += textToType[this.wordIndex].length + 1;
+                if ($('#typingText').val() == textToType[player.wordIndex]) {
+                    this.charIndex += textToType[player.wordIndex].length + 1;
                     ++this.wordIndex;
                     this.updateProgress();
                     this.updateWord();
@@ -130,24 +129,24 @@ $(function() {
                 let bad = false;
                 let i;
                 if ($('#typingText').val().length >
-                textToType[this.wordIndex].length)
+                textToType[player.wordIndex].length)
                     bad = true;
                 for (i = 0;
-                i < Math.min(textToType[this.wordIndex].length,
+                i < Math.min(textToType[player.wordIndex].length,
                 $('#typingText').val().length); ++i) {
                     let curCh = $($($('#textToType')
-                    .children()[this.wordIndex]).children()[i]);
+                    .children()[player.wordIndex]).children()[i]);
                     let color = 'red';
                     if (!bad && $('#typingText').val()[i] ==
-                    textToType[this.wordIndex][i])
+                    textToType[player.wordIndex][i])
                         color = 'green';
                     curCh.css('text-decoration-color', color)
                     .css('color', color);
                     if (color == 'red')
                         bad = true;
                 }
-                for (; i < textToType[this.wordIndex].length; ++i) {
-                    $($($('#textToType').children()[this.wordIndex])
+                for (; i < textToType[player.wordIndex].length; ++i) {
+                    $($($('#textToType').children()[player.wordIndex])
                     .children()[i])
                     .css({
                         'color': 'black',
@@ -161,26 +160,38 @@ $(function() {
                 $('#typingText').css('background-color', color);
             }),
             endGame: function () {
-                socket.emit('race finished', player, function() {
-                    if (player.wordIndex == textToType.length)
-                        $('#messages').html(`You finished the race with ${player.wpm} WPM`);
-                    else
-                        $('#messages').html('Sorry, you ran out of time.');
-                    Array.prototype.slice.call($('#gameElements').children())
-                    .forEach(el => $(el).empty().hide());
-                  
-                    $('#joinButton').show();
-                    newPlayer = true;
-                    player.wordIndex = 0;
-                    player.charIndex = 0;
-                    player.wpm = 0;
-                    player.roomid = undefined;
-                    player.loadedText = false;
-                });
+                socket.emit('race finished', player, setPlayer);
+                if (player.wordIndex == textToType.length)
+                    $('#messages').html(`You finished the race with ${player.wpm} WPM`);
+                else
+                    $('#messages').html('Sorry, you ran out of time.');
+                Array.prototype.slice.call($('#gameElements').children())
+                .forEach(el => $(el).empty().hide());
+              
+                $('#joinButton').show();
+                newPlayer = true;
+                player.wordIndex = 0;
+                player.charIndex = 0;
+                player.wpm = 0;
+                player.loadedText = false;
             }
         };
         player.updateWord();
 
+        function setPlayerInfo() {
+            let r = $('#roomToJoin').val();
+            if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
+                player.roomid = $('#roomToJoin').val();
+            } else {
+                player.roomid = undefined;
+            }
+            player.wish = $("input[name='changeOrJoin']:checked").val();
+            let m = $('#minPlayers').val();
+            if (m) player.minPlayers = m;
+            let v = $('#username').val();
+            if (v) player.name = v;
+        }
+            
         $('#typingText').bind('input', function(e) {
             player.updateText(e.key);
             if (player.wordIndex == textToType.length - 1 &&
@@ -199,7 +210,6 @@ $(function() {
         }).on('start game', function (game) {
             $('#typingText').removeAttr('readonly');
             $('#messages').empty();
-            console.log(player);
             document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
         }).on('end game', function (game) {
@@ -207,6 +217,7 @@ $(function() {
         }).on('init player', (function (game) {
             var newPlayer = true;
             return function(game) {
+                $('#messages').empty();
                 function pushPlayer(player) {
                     let playerSection = $(document.createElement('div'));
                     playerSection.addClass('progress-bar-container');
@@ -252,23 +263,32 @@ $(function() {
             $('#timer').html(`Time until race starts: ${count}`);
         }).on('end countdown', function (count) {
             var minutes = Math.floor(count / 60);
-            var seconds = count % 60;
+            var seconds = count % 60;	
             $('#timer').html(`${'Time remaining: ' + String(minutes) + ":" + String(seconds).padStart(2,0)}`);
             socket.emit('progress update', player, setPlayer);
         });
         
-        function setPlayer(update, fn) {
-            updateObj = JSON.parse(update);
+        function setPlayer(update) {
+            let updateObj = JSON.parse(update);
             Object.keys(updateObj).forEach(function(key) {
                 player[key] = updateObj[key];
             });
         }
         
         $('#joinButton').click(function() {
-            socket.emit('join game', player, setPlayer);
-            document.getElementById('userinfo').style.display='none';
-            $('#gameElements').show();
-            $('#joinButton').hide();
+            socket.emit('leave game', player);
+            setPlayerInfo();
+            socket.emit('join game', player, function (playerStr, err) {
+                if (err) {
+                    $('#messages').html(err);
+                }
+                else {
+                    setPlayer(playerStr);
+                    $('#gameElements').show();
+                    $('#joinButton').hide();
+                }
+            });
+            
         });
         
         $('#roomToJoin').bind('input', function () {
@@ -292,24 +312,7 @@ $(function() {
                 $('#createRoomOptions').hide();
             }
         });
-        
-        $('#userinfo').submit(function(e) {
-            e.preventDefault();
-            let r = $('#roomToJoin').val();
-            if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
-                player.roomid = $('#roomToJoin').val();
-            } else {
-                player.roomid = undefined;
-            }
-            player.wish = $("input[name='changeOrJoin']:checked").val();
-            let m = $('#minPlayers').val();
-            if (m) player.minPlayers = m;
-            let v = $('#username').val();
-            if (v) player.name = v;
-            $('#messages').html('Updated!');
-            
-            $('#joinButton').show();
-        });
+
     });
 });
 </script>
