@@ -25,7 +25,7 @@ var nextAvailableGameRoom = (function(player) {
         function createGameRoom(player) {
             let minPlayers = (create ? player.minPlayers : 1);
             var gameRoom = {
-                id: (create ? roomid : io.engine.generateId()),
+                id: (player.roomid ? player.roomid : io.engine.generateId()),
                 state: (create ? 'custom' : 'waiting'),
                 sentence: sentences[Math.floor(Math.random() * sentences.length)],
                 players: [],
