@@ -43,7 +43,7 @@ var nextAvailableGameRoom = (function(player) {
                 minPlayers: parseInt(minPlayers, 10),
                 maxPlayers: 3,
                 countdown: (function () {
-                    let count = 1;
+                    let count = 10;
                     return function countdown() {
                         if (gameRoom.state != 'dead') {
                             game.to(gameRoom.id).emit('countdown', count--);
