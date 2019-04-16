@@ -1,3 +1,5 @@
+"use strict";
+
 var app = require('express')();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
@@ -57,7 +59,6 @@ var nextAvailableGameRoom = (function(player) {
                                 gameRoom.state = 'active';
                                 gameRoom.start();
                                 gameRoom.endCountdown();
-                            
                             }
                         }
                     }
@@ -66,16 +67,12 @@ var nextAvailableGameRoom = (function(player) {
                 timeLeft: 100,
                 endCountdown: (function () {
                     return function countdown() {
-                            if (gameRoom.state != 'dead') {
+                        if (gameRoom.state != 'dead') {
                             game.to(gameRoom.id).emit('end countdown', gameRoom.timeLeft--);
                             if (gameRoom.timeLeft >= 0) {
                                 setTimeout(function() {
                                     countdown();
                                 }, 1000);
-                            } else {
-                                game.to(gameRoom.id).emit('end game', gameRoom);
-                                index = games.findIndex(gr => gr.id = gameRoom.id);
-                                games.splice(index, 1);
                             }
                         }
                     }
@@ -89,33 +86,31 @@ var nextAvailableGameRoom = (function(player) {
             games.push(gameRoom);
             return gameRoom;
         }
-        let availableRooms;
+        
         if (player.wish == 'join') {
-            availableRooms = games.filter((create) ? (gr => gr.id == player.roomid) : (gr => gr.state == 'waiting'));
-            return (availableRooms.length == 0) ? createGameRoom(player) : availableRooms[0];
-        } else {
-            return createGameRoom(player);
+            let filterFunc;
+            if (player.roomid)
+                filterFunc = (gr => gr.id == player.roomid);
+            else
+                filterFunc = (gr => gr.state == 'waiting');
+            let nextAvailableRoom = games.find(filterFunc);
+            if (nextAvailableRoom !== undefined) {
+                return nextAvailableRoom;
+            } else if (player.roomid)
+                return false;
         }
+        return createGameRoom(player);
     }
 })();
 
 game.on('connection', function (socket) {
-    socket.on('join game', function(player, setPlayer) {
-        if (games.find(g => g.players.find(p => p.id == player.id) !== undefined) === undefined) {
-            let gameRoom = nextAvailableGameRoom(player);
-            socket.join(gameRoom.id);
-            gameRoom.addPlayer(player);
-            gameRoom.init();
-            game.to(gameRoom.id).emit('init player', gameRoom);
-            setPlayer(JSON.stringify({roomid: gameRoom.id}));
-        }
-    });
-    
+
     // Find player's game room
     function getPlayer(player) {
         let [gameIndex, playerIndex] = getPlayerIndices(player);
         if (gameIndex !== false && playerIndex !== false)
             return games[gameIndex].players[playerIndex];
+        return false;
     }
     
     function getPlayerIndices(player) {
@@ -123,13 +118,15 @@ game.on('connection', function (socket) {
         gameIndex = games.findIndex(g => g.id == player.roomid);
         if (gameIndex > -1) {
             playerIndex = games[gameIndex].players.findIndex(p => p.id == player.id)
-            return [gameIndex, playerIndex];
+            if (playerIndex > -1)
+                return [gameIndex, playerIndex];
         }
         return [false];
     }
     
     function removePlayer(player) {
         let [gameIndex, playerIndex] = getPlayerIndices(player);
+        socket.leave(player.roomid);
         if (gameIndex !== false && playerIndex !== false) {
             games[gameIndex].players.splice(playerIndex, 1);
             if (games[gameIndex].players.length == 0) {
@@ -139,8 +136,31 @@ game.on('connection', function (socket) {
         }
     }
     
+    socket.on('join game', function(player, setPlayer) {
+        let playerExists = getPlayer(player);
+        if (playerExists === false) {
+            let gameRoom = nextAvailableGameRoom(player);
+            if (gameRoom === false) {
+                setPlayer(false, 'Room not found.');
+            } else {
+                socket.join(gameRoom.id);
+                player.roomid = gameRoom.id;
+                gameRoom.addPlayer(player);
+                gameRoom.init();
+                game.to(gameRoom.id).emit('init player', gameRoom);
+                setPlayer(JSON.stringify({roomid: gameRoom.id}));
+            }
+        } else {
+            setPlayer(false, 'You are already in a game.');
+        }
+    });
+    
+    
     socket.on('race finished', function (player, setPlayer) {
         progressUpdate(player, setPlayer);
+    });
+    
+    socket.on('leave game', function (player) {
         removePlayer(player);
     });
     
@@ -152,7 +172,7 @@ game.on('connection', function (socket) {
                 let newWPM = Math.round(player.charIndex / 5 * 60 / timeElapsed);
                 setPlayer(JSON.stringify({wpm: newWPM}));
                 player.wpm = newWPM;
-                game.to(player.roomid).emit('progress update', player);
+                game.in(player.roomid).emit('progress update', player);
             }
         }
     }
