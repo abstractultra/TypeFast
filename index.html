@@ -266,6 +266,7 @@ $(function() {
         
         $('#joinButton').click(function() {
             socket.emit('join game', player, setPlayer);
+            document.getElementById('userinfo').style.display='none';
             $('#gameElements').show();
             $('#joinButton').hide();
         });
