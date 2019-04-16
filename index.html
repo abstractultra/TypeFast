@@ -46,9 +46,20 @@
         html,body {
             font-family: Arial,Ubuntu,sans-serif;
         }
+        #joinButton {
+            display:none;
+        }
     </style>
 </head>
 <body>
+<div id="siteLogo">
+    <h1>
+        TypeFast
+    </h1>
+    <h4>
+         A typing game...
+    </h4>
+</div>
 <form action="" id="userinfo">
 Username: <input type="text" id="username" /><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
@@ -240,7 +251,9 @@ $(function() {
         }).on('countdown', function (count) {
             $('#timer').html(`Time until race starts: ${count}`);
         }).on('end countdown', function (count) {
-            $('#timer').html(`${count} seconds left.`);
+            var minutes = Math.floor(count / 60);
+            var seconds = count % 60;
+            $('#timer').html(`${'Time remaining: ' + String(minutes) + ":" + String(seconds).padStart(2,0)}`);
             socket.emit('progress update', player, setPlayer);
         });
         
