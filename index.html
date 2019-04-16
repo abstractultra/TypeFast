@@ -219,7 +219,6 @@ $(function() {
         }).on('init player', (function (game) {
             var newPlayer = true;
             return function(game) {
-                $('#messages').empty();
                 function pushPlayer(player) {
                     let playerSection = $(document.createElement('div'));
                     playerSection.addClass('progress-bar-container');
