@@ -48,15 +48,14 @@
         }
     </style>
 </head>
-<body>
 <div id="siteLogo">
-    <h1>	
-        TypeFast	
-    </h1>	
-    <h4>	
-         A typing game...	
-    </h4>	
-</div>	
+    <h1>
+        TypeFast
+    </h1>
+    <h4>
+         A typing game...
+    </h4>
+</div>
 <div id="userinfo">
 Username: <input type="text" id="username" placeholder="Guest"/><br />
 RoomID: <input type="text" id="roomToJoin" placeholder="Empty for Random"/><br/>
@@ -84,7 +83,7 @@ Min Players: <select id="minPlayers">
 <p id="textToType"></p>
 <textarea id="typingText" style="display: none"></textarea>
 </span>
-<button id="joinButton">Join a Race!</button>
+<button id="joinButton">Join Race!</button>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
@@ -103,16 +102,18 @@ $(function() {
             roomid: undefined,
             wpm: 0,
             wish: 'join',
+            updateProgress: function() {
+                if (this.wordIndex != textToType.length) {
+                    $(`#${this.id}-progress > .bar`).css('width',
+                    `${this.wordIndex / textToType.length * 100}%`);
+                }
+            },
             updateWord: function() {
                 Array.prototype.slice.call($($($('#textToType')
                 .children()[this.wordIndex])).children())
                 .forEach(function(el) {
                     $(el).css('text-decoration', 'underline');
                 })
-            },
-            updateProgress: function() {
-                $(`#${this.id}-progress > .bar`).css('width',
-                `${this.wordIndex / textToType.length * 100}%`);
             },
             flushTyping: function(e) {
                 if ($('#typingText').val() == textToType[player.wordIndex]) {
@@ -163,23 +164,30 @@ $(function() {
             }),
             endGame: function () {
                 socket.emit('race finished', player, setPlayer);
+                $('#messages').show();
                 if (player.wordIndex == textToType.length)
                     $('#messages').html(`You finished the race with ${player.wpm} WPM`);
                 else
                     $('#messages').html('Sorry, you ran out of time.');
-                Array.prototype.slice.call($('#gameElements').children())
-                .forEach(el => $(el).empty().hide());
-              
-                $('#joinButton').show();
-                newPlayer = true;
-                player.wordIndex = 0;
-                player.charIndex = 0;
-                player.wpm = 0;
-                player.loadedText = false;
+                progressUpdate(this);
             }
         };
         player.updateWord();
 
+
+        function resetGame() {
+            $('#messages').empty();
+             Array.prototype.slice.call($('#gameElements').children())
+            .forEach(el => $(el).empty().hide());
+              newPlayer = true;
+                player.wordIndex = 0;
+                player.charIndex = 0;
+                player.wpm = 0;
+                player.loadedText = false;
+        }
+    
+        
+        
         function setPlayerInfo() {
             let r = $('#roomToJoin').val();
             if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
@@ -205,13 +213,18 @@ $(function() {
             }
         });
         
-        socket.on('progress update', function (player) {
-            $(`#${player.id}-progress > .bar`).css('width',
-            `${player.wordIndex / textToType.length * 100}%`);
-            $(`#${player.id}-progress > .wpm`).html(`${player.wpm} WPM`);
+        function progressUpdate(otherPlayer) {
+            $(`#${otherPlayer.id}-progress > .bar`).css('width',
+            `${otherPlayer.wordIndex / textToType.length * 100}%`);
+            $(`#${otherPlayer.id}-progress > .wpm`).html(`${otherPlayer.wpm} WPM`);
+        }
+        
+        socket.on('progress update', function(otherPlayer) {
+            if (textToType.length != player.wordIndex)
+                progressUpdate(otherPlayer);
         }).on('start game', function (game) {
             $('#typingText').removeAttr('readonly');
-            $('#messages').empty();
+            $('#messages').hide();
             document.getElementById('typingText').blur();
             document.getElementById('typingText').focus();
         }).on('end game', function (game) {
@@ -264,7 +277,7 @@ $(function() {
             $('#timer').html(`Time until race starts: ${count}`);
         }).on('end countdown', function (count) {
             var minutes = Math.floor(count / 60);
-            var seconds = count % 60;	
+            var seconds = count % 60;
             $('#timer').html(`${'Time remaining: ' + String(minutes) + ":" + String(seconds).padStart(2,0)}`);
             socket.emit('progress update', player, setPlayer);
         });
@@ -276,9 +289,17 @@ $(function() {
             });
         }
         
-        $('#joinButton').click(function() {
+        function leaveGame() {
+            resetGame();
             socket.emit('leave game', player);
+            socket.emit('race finished', player, setPlayer);
+            $('#joinButton').html('Join Race!').show();
+            $('#joinButton')[0].onclick = joinGame;
+        }
+        
+        function joinGame() {
             setPlayerInfo();
+            $('#messages').show();
             socket.emit('join game', player, function (playerStr, err) {
                 if (err) {
                     $('#messages').html(err);
@@ -286,11 +307,13 @@ $(function() {
                 else {
                     setPlayer(playerStr);
                     $('#gameElements').show();
-                    $('#joinButton').hide();
+                    $('#joinButton').html('Leave Race...');
+                    $('#joinButton')[0].onclick = leaveGame;
                 }
             });
-            $('#userinfo').hide();
-        });
+        }
+        
+        $('#joinButton')[0].onclick = joinGame;
         
         $('#roomToJoin').bind('input', function () {
             if (/^[0-9A-Za-z_]+$/.test($('#roomToJoin').val())) {
